@@ -6,13 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, Users, BookOpen, BarChart2, Award, FileText, UserPlus, Upload } from 'lucide-react';
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from '@/hooks/use-toast';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { HodFacultyList } from './HodFacultyList';
 import { AddFacultyForm } from './AddFacultyForm';
 import { CertificateUpload } from './CertificateUpload';
@@ -27,6 +22,28 @@ const HodDashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const { toast } = useToast();
   const [facultyMembers, setFacultyMembers] = useState<any[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  // Function to fetch faculty members
+  const fetchFacultyMembers = async (departmentId: string) => {
+    try {
+      const { data: faculty, error: facultyError } = await supabase
+        .from('faculty_members')
+        .select('*')
+        .eq('department_id', departmentId);
+        
+      if (facultyError) throw facultyError;
+      setFacultyMembers(faculty || []);
+      setFacultyCount(faculty?.length || 0);
+    } catch (error) {
+      console.error('Error fetching faculty members:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load faculty members",
+        variant: "destructive"
+      });
+    }
+  };
 
   useEffect(() => {
     const fetchDepartmentData = async () => {
@@ -56,14 +73,6 @@ const HodDashboard = () => {
           if (deptError) throw deptError;
           setDepartmentData(department);
           
-          // Get faculty count
-          const { count: facultyMemberCount } = await supabase
-            .from('faculty_members')
-            .select('*', { count: 'exact', head: true })
-            .eq('department_id', userRole.department_id);
-            
-          setFacultyCount(facultyMemberCount || 0);
-          
           // Get courses count
           const { count: departmentCourses } = await supabase
             .from('courses')
@@ -76,13 +85,7 @@ const HodDashboard = () => {
           setCertificationsCount(12);
           
           // Fetch faculty members for this department
-          const { data: faculty, error: facultyError } = await supabase
-            .from('faculty_members')
-            .select('*')
-            .eq('department_id', userRole.department_id);
-            
-          if (facultyError) throw facultyError;
-          setFacultyMembers(faculty || []);
+          await fetchFacultyMembers(userRole.department_id);
         }
       } catch (error) {
         console.error('Error fetching department data:', error);
@@ -97,7 +100,18 @@ const HodDashboard = () => {
     };
 
     fetchDepartmentData();
-  }, [user, toast]);
+  }, [user, toast, refreshKey]);
+
+  const handleFacultyAdded = () => {
+    // Refresh faculty list when a new faculty is added
+    if (departmentData?.id) {
+      fetchFacultyMembers(departmentData.id);
+    }
+    // Switch to faculty tab to show the updated list
+    setActiveTab("faculty");
+    // Increment refresh key to trigger useEffect
+    setRefreshKey(prev => prev + 1);
+  };
 
   if (loading) {
     return (
@@ -191,7 +205,11 @@ const HodDashboard = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <HodFacultyList facultyMembers={facultyMembers} departmentId={departmentData.id} />
+                  <HodFacultyList 
+                    facultyMembers={facultyMembers} 
+                    departmentId={departmentData.id}
+                    onFacultyUpdate={() => setRefreshKey(prev => prev + 1)}
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -250,14 +268,7 @@ const HodDashboard = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <AddFacultyForm departmentId={departmentData.id} onSuccess={() => {
-                    toast({
-                      title: "Faculty added",
-                      description: "The faculty member has been added successfully",
-                    });
-                    // Refresh the faculty list
-                    setActiveTab("faculty");
-                  }} />
+                  <AddFacultyForm departmentId={departmentData.id} onSuccess={handleFacultyAdded} />
                 </CardContent>
               </Card>
             </TabsContent>
