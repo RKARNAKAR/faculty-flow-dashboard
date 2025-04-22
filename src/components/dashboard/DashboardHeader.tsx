@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from "@/components/ui/button";
-import { LogOut } from 'lucide-react';
+import { LogOut, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface DashboardHeaderProps {
@@ -21,7 +21,10 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ userRole, userName })
         </span>
       </div>
       <div className="flex items-center space-x-4">
-        <span>{userName}</span>
+        <div className="flex items-center">
+          <User className="h-5 w-5 mr-2" />
+          <span>{userName}</span>
+        </div>
         <Button variant="ghost" size="icon" onClick={signOut}>
           <LogOut className="h-5 w-5" />
         </Button>
