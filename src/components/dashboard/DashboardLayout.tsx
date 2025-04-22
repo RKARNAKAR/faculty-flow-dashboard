@@ -1,4 +1,3 @@
-
 import React from 'react';
 import DashboardHeader from './DashboardHeader';
 import { 
@@ -21,7 +20,7 @@ import {
   Shield,
   Mail,
   Upload,
-  Chart 
+  PieChart
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -48,7 +47,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, userRole, u
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 
-                {/* Admin-specific menu items */}
                 {userRole === 'Admin' && (
                   <>
                     <SidebarMenuItem>
@@ -98,7 +96,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, userRole, u
                   </>
                 )}
                 
-                {/* Faculty-specific menu items */}
                 {userRole === 'Faculty' && (
                   <>
                     <SidebarMenuItem>
@@ -130,13 +127,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, userRole, u
                   </>
                 )}
                 
-                {/* HOD-specific menu items */}
                 {userRole === 'HOD' && (
                   <>
                     <SidebarMenuItem>
                       <SidebarMenuButton asChild tooltip="Department Overview">
                         <a href="#department-overview" className="flex items-center space-x-2">
-                          <Chart className="h-5 w-5" />
+                          <PieChart className="h-5 w-5" />
                           <span>Department Overview</span>
                         </a>
                       </SidebarMenuButton>
