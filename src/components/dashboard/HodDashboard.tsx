@@ -1,10 +1,21 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, Users, BookOpen, BarChart2, Award, FileText } from 'lucide-react';
+import { Loader2, Users, BookOpen, BarChart2, Award, FileText, UserPlus, Upload } from 'lucide-react';
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useToast } from '@/hooks/use-toast';
+import { HodFacultyList } from './HodFacultyList';
+import { AddFacultyForm } from './AddFacultyForm';
+import { CertificateUpload } from './CertificateUpload';
 
 const HodDashboard = () => {
   const { user } = useAuth();
@@ -14,6 +25,8 @@ const HodDashboard = () => {
   const [certificationsCount, setCertificationsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
+  const { toast } = useToast();
+  const [facultyMembers, setFacultyMembers] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchDepartmentData = async () => {
@@ -61,16 +74,30 @@ const HodDashboard = () => {
           
           // For demo purposes, simulate certification count
           setCertificationsCount(12);
+          
+          // Fetch faculty members for this department
+          const { data: faculty, error: facultyError } = await supabase
+            .from('faculty_members')
+            .select('*')
+            .eq('department_id', userRole.department_id);
+            
+          if (facultyError) throw facultyError;
+          setFacultyMembers(faculty || []);
         }
       } catch (error) {
         console.error('Error fetching department data:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load department data",
+          variant: "destructive"
+        });
       } finally {
         setLoading(false);
       }
     };
 
     fetchDepartmentData();
-  }, [user]);
+  }, [user, toast]);
 
   if (loading) {
     return (
@@ -148,10 +175,11 @@ const HodDashboard = () => {
           </div>
 
           <Tabs defaultValue="faculty" className="w-full" value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="faculty">Faculty Overview</TabsTrigger>
               <TabsTrigger value="teaching">Teaching Loads</TabsTrigger>
-              <TabsTrigger value="reports">Department Reports</TabsTrigger>
+              <TabsTrigger value="add-faculty">Add Faculty</TabsTrigger>
+              <TabsTrigger value="certificates">Certificates</TabsTrigger>
             </TabsList>
             
             <TabsContent value="faculty" className="space-y-4 mt-6">
@@ -163,9 +191,7 @@ const HodDashboard = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="border rounded-md p-4 text-center text-muted-foreground">
-                    Department faculty listing would be displayed here
-                  </div>
+                  <HodFacultyList facultyMembers={facultyMembers} departmentId={departmentData.id} />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -185,32 +211,70 @@ const HodDashboard = () => {
                   <div className="flex justify-end mb-4">
                     <Button>Request Load Adjustment</Button>
                   </div>
-                  <div className="border rounded-md p-4 text-center text-muted-foreground">
-                    Teaching load distribution chart and details would be displayed here
+                  <div className="border rounded-md p-4">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Faculty Name</TableHead>
+                          <TableHead>Course Count</TableHead>
+                          <TableHead>Total Credits</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {facultyMembers.map((faculty) => (
+                          <TableRow key={faculty.id}>
+                            <TableCell className="font-medium">{faculty.first_name} {faculty.last_name}</TableCell>
+                            <TableCell>2</TableCell>
+                            <TableCell>6</TableCell>
+                            <TableCell>
+                              <span className="bg-green-100 text-green-800 text-xs font-medium px-2 py-0.5 rounded">
+                                Balanced
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
                 </CardContent>
               </Card>
             </TabsContent>
-            
-            <TabsContent value="reports" className="mt-6">
+
+            <TabsContent value="add-faculty" className="mt-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Department Reports</CardTitle>
+                  <CardTitle>Add New Faculty</CardTitle>
                   <CardDescription>
-                    Generate and review department performance reports
+                    Create a new faculty member for your department
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <AddFacultyForm departmentId={departmentData.id} onSuccess={() => {
+                    toast({
+                      title: "Faculty added",
+                      description: "The faculty member has been added successfully",
+                    });
+                    // Refresh the faculty list
+                    setActiveTab("faculty");
+                  }} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="certificates" className="mt-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Faculty Certificates</CardTitle>
+                  <CardDescription>
+                    Upload and manage faculty certifications and achievements
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground mb-4">
-                    Generate and export departmental reports on faculty performance, certifications, and teaching loads.
+                    Upload certification documents for faculty members or for departmental records.
                   </p>
-                  <div className="flex justify-end mb-4 space-x-2">
-                    <Button variant="outline">Filter Data</Button>
-                    <Button>Generate Report</Button>
-                  </div>
-                  <div className="border rounded-md p-4 text-center text-muted-foreground">
-                    Report generation interface would be displayed here
-                  </div>
+                  <CertificateUpload departmentId={departmentData.id} facultyMembers={facultyMembers} />
                 </CardContent>
               </Card>
             </TabsContent>
