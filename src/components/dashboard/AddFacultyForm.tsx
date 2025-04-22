@@ -7,47 +7,30 @@ import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage, FormDes
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from "@/integrations/supabase/client";
 import { UserPlus } from 'lucide-react';
-import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const formSchema = z.object({
-  firstName: z.string().min(2, {
-    message: "First name must be at least 2 characters.",
-  }),
-  lastName: z.string().min(2, {
-    message: "Last name must be at least 2 characters.",
-  }),
-  title: z.string().min(2, {
-    message: "Title must be at least 2 characters.",
-  }),
-  email: z.string().email({
-    message: "Please enter a valid email address.",
-  }),
-  phone: z.string().optional(),
-  officeLocation: z.string().optional(),
-  bio: z.string().optional(),
+  firstName: z.string().min(2, { message: "First name must be at least 2 characters." }),
+  lastName: z.string().min(2, { message: "Last name must be at least 2 characters." }),
+  title: z.string().min(2, { message: "Title must be at least 2 characters." }),
+  email: z.string().email({ message: "Please enter a valid email address." }),
+  departmentId: z.string({ required_error: "Please select a department" }),
   createAccount: z.boolean().default(false),
-  password: z.string().min(6, {
-    message: "Password must be at least 6 characters.",
+  password: z.string().min(6, { 
+    message: "Password must be at least 6 characters." 
   }).optional(),
-}).refine((data) => {
-  // If createAccount is true, password must be provided
-  return !data.createAccount || (data.createAccount && data.password);
-}, {
-  message: "Password is required when creating an account",
-  path: ["password"],
 });
 
 interface AddFacultyFormProps {
-  departmentId: string;
+  departments: any[];
   onSuccess: () => void;
 }
 
-export const AddFacultyForm: React.FC<AddFacultyFormProps> = ({ departmentId, onSuccess }) => {
+export const AddFacultyForm: React.FC<AddFacultyFormProps> = ({ departments, onSuccess }) => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAccountFields, setShowAccountFields] = useState(false);
@@ -59,17 +42,13 @@ export const AddFacultyForm: React.FC<AddFacultyFormProps> = ({ departmentId, on
       lastName: "",
       title: "",
       email: "",
-      phone: "",
-      officeLocation: "",
-      bio: "",
+      departmentId: departments[0]?.id || "",
       createAccount: false,
-      password: "",
     },
   });
 
   const watchCreateAccount = form.watch("createAccount");
 
-  // Update UI when createAccount changes
   React.useEffect(() => {
     setShowAccountFields(watchCreateAccount);
   }, [watchCreateAccount]);
@@ -79,12 +58,11 @@ export const AddFacultyForm: React.FC<AddFacultyFormProps> = ({ departmentId, on
     try {
       let userId = null;
 
-      // If creating account is enabled, create user first
+      // Create user account if selected
       if (values.createAccount && values.password) {
-        // Create a new user account
-        const { data: userData, error: userError } = await supabase.auth.signUp({
+        const { data: authData, error: authError } = await supabase.auth.signUp({
           email: values.email,
-          password: values.password as string,
+          password: values.password,
           options: {
             data: {
               first_name: values.firstName,
@@ -93,73 +71,53 @@ export const AddFacultyForm: React.FC<AddFacultyFormProps> = ({ departmentId, on
           }
         });
 
-        if (userError) {
-          throw userError;
-        }
+        if (authError) throw authError;
+        userId = authData.user?.id;
 
-        if (userData.user) {
-          userId = userData.user.id;
+        // Assign faculty role
+        const { data: rolesData, error: rolesError } = await supabase
+          .from('roles')
+          .select('id')
+          .eq('name', 'faculty')
+          .single();
 
-          // Create role entry for the new user (faculty role)
-          const { data: rolesData, error: rolesError } = await supabase
-            .from('roles')
-            .select('id')
-            .eq('name', 'faculty')
-            .single();
+        if (rolesError) throw rolesError;
 
-          if (rolesError) {
-            throw rolesError;
-          }
-
-          // Assign the faculty role to the user
-          const { error: userRoleError } = await supabase
-            .from('user_roles')
-            .insert([{
-              user_id: userId,
-              role_id: rolesData.id,
-              department_id: departmentId
-            }]);
-
-          if (userRoleError) {
-            throw userRoleError;
-          }
-        }
+        await supabase.from('user_roles').insert({
+          user_id: userId,
+          role_id: rolesData.id,
+          department_id: values.departmentId
+        });
       }
 
-      // Insert new faculty member
-      const { data, error } = await supabase
+      // Create faculty member
+      const { data: facultyData, error: facultyError } = await supabase
         .from('faculty_members')
-        .insert([
-          {
-            first_name: values.firstName,
-            last_name: values.lastName,
-            title: values.title,
-            email: values.email,
-            phone: values.phone || null,
-            office_location: values.officeLocation || null,
-            bio: values.bio || null,
-            department_id: departmentId,
-            user_id: userId // Link to user if an account was created
-          }
-        ])
+        .insert({
+          first_name: values.firstName,
+          last_name: values.lastName,
+          title: values.title,
+          email: values.email,
+          department_id: values.departmentId,
+          user_id: userId
+        })
         .select('*')
         .single();
 
-      if (error) {
-        throw error;
-      }
+      if (facultyError) throw facultyError;
 
       toast({
-        title: "Faculty Added",
-        description: `${values.firstName} ${values.lastName} has been added successfully${values.createAccount ? " with a user account" : ""}.`,
+        title: "Faculty Added Successfully",
+        description: `${values.firstName} ${values.lastName} has been added to ${
+          departments.find(d => d.id === values.departmentId)?.name || 'the department'
+        }${values.createAccount ? " with a user account" : ""}.`,
       });
-      
+
       form.reset();
       onSuccess();
-      
     } catch (error: any) {
       toast({
-        title: "Error",
+        title: "Error Adding Faculty",
         description: error.message || "Failed to add faculty member",
         variant: "destructive",
       });
@@ -221,7 +179,7 @@ export const AddFacultyForm: React.FC<AddFacultyFormProps> = ({ departmentId, on
               <FormItem>
                 <FormLabel>Email</FormLabel>
                 <FormControl>
-                  <Input placeholder="example@university.edu" {...field} />
+                  <Input placeholder="john.doe@university.edu" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -230,27 +188,27 @@ export const AddFacultyForm: React.FC<AddFacultyFormProps> = ({ departmentId, on
           
           <FormField
             control={form.control}
-            name="phone"
+            name="departmentId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Phone</FormLabel>
-                <FormControl>
-                  <Input placeholder="+1 (123) 456-7890" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={form.control}
-            name="officeLocation"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Office Location</FormLabel>
-                <FormControl>
-                  <Input placeholder="Building A, Room 123" {...field} />
-                </FormControl>
+                <FormLabel>Department</FormLabel>
+                <Select 
+                  onValueChange={field.onChange} 
+                  defaultValue={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Department" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {departments.map((dept) => (
+                      <SelectItem key={dept.id} value={dept.id}>
+                        {dept.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
@@ -259,77 +217,53 @@ export const AddFacultyForm: React.FC<AddFacultyFormProps> = ({ departmentId, on
         
         <FormField
           control={form.control}
-          name="bio"
+          name="createAccount"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>Bio</FormLabel>
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+              <div className="space-y-0.5">
+                <FormLabel>Create User Account</FormLabel>
+                <FormDescription>
+                  Generate login credentials for this faculty member
+                </FormDescription>
+              </div>
               <FormControl>
-                <Textarea 
-                  placeholder="Short biography and research interests" 
-                  className="min-h-[100px]" 
-                  {...field} 
+                <Switch
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
                 />
               </FormControl>
-              <FormMessage />
             </FormItem>
           )}
         />
 
-        <Separator className="my-4" />
-        
-        <div className="space-y-4">
+        {showAccountFields && (
           <FormField
             control={form.control}
-            name="createAccount"
+            name="password"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                <div className="space-y-0.5">
-                  <FormLabel>Create User Account</FormLabel>
-                  <FormDescription>
-                    Create a user account for this faculty member
-                  </FormDescription>
-                </div>
+              <FormItem>
+                <FormLabel>Temporary Password</FormLabel>
                 <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
+                  <Input 
+                    type="password" 
+                    placeholder="Set initial password" 
+                    {...field} 
                   />
                 </FormControl>
+                <FormDescription>
+                  Faculty member can change this password after first login
+                </FormDescription>
+                <FormMessage />
               </FormItem>
             )}
           />
-
-          {showAccountFields && (
-            <>
-              <Alert>
-                <AlertDescription>
-                  This will create a user account with the email provided above and the password below.
-                  The faculty member will be able to log in to the system.
-                </AlertDescription>
-              </Alert>
-              
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="password" 
-                        placeholder="Enter a password for the new user" 
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </>
-          )}
-        </div>
+        )}
         
-        <Button type="submit" disabled={isSubmitting} className="w-full">
+        <Button 
+          type="submit" 
+          disabled={isSubmitting} 
+          className="w-full"
+        >
           <UserPlus className="h-4 w-4 mr-2" />
           {isSubmitting ? "Adding Faculty..." : "Add Faculty Member"}
         </Button>
