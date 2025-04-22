@@ -71,11 +71,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Modified signIn to handle demo accounts directly
   const signIn = async (email: string, password: string, role?: string) => {
     try {
       console.log('Attempting to sign in with:', { email, role });
       
-      // First, authenticate with email and password
+      // For demo purposes, we'll handle mock credentials directly
+      if (role && email && password) {
+        // Check if using demo credentials
+        const isDemoAccount = (
+          (email === 'admin@facultech.com' && password === 'admin123' && role.toLowerCase() === 'admin') ||
+          (email === 'faculty@facultech.com' && password === 'faculty123' && role.toLowerCase() === 'faculty') ||
+          (email === 'hod@facultech.com' && password === 'hod123' && role.toLowerCase() === 'hod')
+        );
+        
+        if (isDemoAccount) {
+          // If using demo credentials, sign in without role verification
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          
+          if (error) throw error;
+          
+          // Manually set the role for demo accounts
+          setUserRole(role.toLowerCase());
+          
+          navigate('/dashboard');
+          toast({
+            title: "Success",
+            description: "You have successfully signed in with demo account.",
+          });
+          return;
+        }
+      }
+      
+      // For non-demo accounts, proceed with normal authentication
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -84,36 +115,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (authError) throw authError;
       
       if (!authData.user) {
-        throw new Error('Authentication successful but no user returned');
+        throw new Error('Authentication failed. No user returned.');
       }
       
       // If a role was specified, verify the user has that role
       if (role) {
-        const { data: roleData, error: roleError } = await supabase
-          .from('user_roles')
-          .select(`
-            role_id,
-            roles:role_id (
-              name
-            )
-          `)
-          .eq('user_id', authData.user.id)
-          .single();
+        try {
+          const { data: roleData, error: roleError } = await supabase
+            .from('user_roles')
+            .select(`
+              role_id,
+              roles:role_id (
+                name
+              )
+            `)
+            .eq('user_id', authData.user.id)
+            .single();
+            
+          if (roleError) {
+            await supabase.auth.signOut();
+            throw new Error('Unable to verify user role. Please contact support.');
+          }
           
-        if (roleError) {
-          // If there was an error checking the role, sign out the user
+          const userRole = roleData?.roles?.name?.toLowerCase();
+          if (!userRole || userRole !== role.toLowerCase()) {
+            await supabase.auth.signOut();
+            throw new Error(`You do not have ${role} access. Please select the correct role or contact your administrator.`);
+          }
+          
+          setUserRole(userRole);
+        } catch (error: any) {
+          // If there was an error verifying the role, sign out and throw
           await supabase.auth.signOut();
-          throw new Error('Unable to verify user role. Please contact support.');
+          throw error;
         }
-        
-        if (!roleData || roleData.roles?.name?.toLowerCase() !== role.toLowerCase()) {
-          // If the role doesn't match, sign out and throw an error
-          await supabase.auth.signOut();
-          throw new Error(`You do not have ${role} access. Please select the correct role or contact your administrator.`);
-        }
-        
-        // Set the role since we have it already
-        setUserRole(roleData.roles?.name || null);
       }
       
       navigate('/dashboard');

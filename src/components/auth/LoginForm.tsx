@@ -29,6 +29,10 @@ const LoginForm = () => {
     
     try {
       await signIn(email, password, role);
+      // If we get here, login was successful
+      setEmail('');
+      setPassword('');
+      setRole('');
     } catch (err: any) {
       console.error('Login error:', err);
       setError(err.message || 'Failed to login. Please check your credentials and try again.');
