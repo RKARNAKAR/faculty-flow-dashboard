@@ -23,7 +23,6 @@ const HodDashboard = () => {
   const [facultyMembers, setFacultyMembers] = useState<any[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Function to fetch faculty members
   const fetchFacultyMembers = async (departmentId: string) => {
     try {
       const { data: faculty, error: facultyError } = await supabase
@@ -50,7 +49,6 @@ const HodDashboard = () => {
       
       setLoading(true);
       try {
-        // Get HOD's department
         const { data: userRole, error: roleError } = await supabase
           .from('user_roles')
           .select(`
@@ -62,7 +60,6 @@ const HodDashboard = () => {
         if (roleError) throw roleError;
         
         if (userRole?.department_id) {
-          // Get department data
           const { data: department, error: deptError } = await supabase
             .from('departments')
             .select('*')
@@ -72,7 +69,6 @@ const HodDashboard = () => {
           if (deptError) throw deptError;
           setDepartmentData(department);
           
-          // Get courses count
           const { count: departmentCourses } = await supabase
             .from('courses')
             .select('*', { count: 'exact', head: true })
@@ -80,10 +76,8 @@ const HodDashboard = () => {
             
           setCoursesCount(departmentCourses || 0);
           
-          // For demo purposes, simulate certification count
           setCertificationsCount(12);
           
-          // Fetch faculty members for this department
           await fetchFacultyMembers(userRole.department_id);
         }
       } catch (error) {
@@ -102,13 +96,10 @@ const HodDashboard = () => {
   }, [user, toast, refreshKey]);
 
   const handleFacultyAdded = () => {
-    // Refresh faculty list when a new faculty is added
     if (departmentData?.id) {
       fetchFacultyMembers(departmentData.id);
     }
-    // Switch to faculty tab to show the updated list
     setActiveTab("faculty");
-    // Increment refresh key to trigger useEffect
     setRefreshKey(prev => prev + 1);
   };
 

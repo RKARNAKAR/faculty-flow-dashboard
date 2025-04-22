@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,7 +19,6 @@ const AdminDashboard = () => {
   const { toast } = useToast();
   
   useEffect(() => {
-    // Fetch departments for faculty assignment
     const fetchDepartments = async () => {
       try {
         const { data, error } = await supabase
@@ -42,7 +40,6 @@ const AdminDashboard = () => {
       }
     };
 
-    // Fetch faculty members
     const fetchFacultyMembers = async () => {
       try {
         const { data, error } = await supabase
@@ -59,7 +56,6 @@ const AdminDashboard = () => {
     fetchDepartments();
     fetchFacultyMembers();
     
-    // Let the user know the dashboard is loaded
     console.log("Admin dashboard loaded");
     toast({
       title: "Admin Dashboard",
@@ -73,7 +69,6 @@ const AdminDashboard = () => {
 
   const handleFacultyAdded = () => {
     setIsAddFacultyOpen(false);
-    // Refresh faculty list
     const fetchFacultyMembers = async () => {
       try {
         const { data, error } = await supabase
@@ -107,19 +102,16 @@ const AdminDashboard = () => {
         </div>
       </div>
       
-      {/* Faculty add dialog */}
       <Dialog open={isAddFacultyOpen} onOpenChange={setIsAddFacultyOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>Add New Faculty Member</DialogTitle>
             <DialogDescription>Create a new faculty member with user credentials if needed</DialogDescription>
           </DialogHeader>
-          {selectedDepartment && (
-            <AddFacultyForm 
-              departmentId={selectedDepartment} 
-              onSuccess={handleFacultyAdded} 
-            />
-          )}
+          <AddFacultyForm 
+            departments={departments} 
+            onSuccess={handleFacultyAdded} 
+          />
         </DialogContent>
       </Dialog>
       

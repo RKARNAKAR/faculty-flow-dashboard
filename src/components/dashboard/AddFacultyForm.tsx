@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -26,14 +26,61 @@ const formSchema = z.object({
 });
 
 interface AddFacultyFormProps {
-  departments: any[];
+  departments?: any[];
+  departmentId?: string;
   onSuccess: () => void;
 }
 
-export const AddFacultyForm: React.FC<AddFacultyFormProps> = ({ departments, onSuccess }) => {
+export const AddFacultyForm: React.FC<AddFacultyFormProps> = ({ departments, departmentId, onSuccess }) => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAccountFields, setShowAccountFields] = useState(false);
+  const [loadedDepartments, setLoadedDepartments] = useState<any[]>([]);
+
+  // Fetch departments if not provided and no specific departmentId is given
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      if (!departments && !departmentId) {
+        try {
+          const { data, error } = await supabase.from('departments').select('*');
+          if (error) throw error;
+          setLoadedDepartments(data || []);
+        } catch (error) {
+          console.error('Error fetching departments:', error);
+          toast({
+            title: "Error",
+            description: "Failed to load departments",
+            variant: "destructive",
+          });
+        }
+      } else if (departmentId && !departments) {
+        // If only departmentId is provided, fetch just that department
+        const fetchSingleDepartment = async () => {
+          try {
+            const { data, error } = await supabase
+              .from('departments')
+              .select('*')
+              .eq('id', departmentId)
+              .single();
+            if (error) throw error;
+            setLoadedDepartments(data ? [data] : []);
+          } catch (error) {
+            console.error('Error fetching department:', error);
+          }
+        };
+        fetchSingleDepartment();
+      } else if (departments) {
+        setLoadedDepartments(departments);
+      }
+    };
+    
+    fetchDepartments();
+  }, [departments, departmentId, toast]);
+
+  // Determine which department to use as default
+  const defaultDepartmentId = departmentId || 
+    (loadedDepartments.length > 0 ? loadedDepartments[0].id : "") || 
+    (departments && departments.length > 0 ? departments[0].id : "");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -42,7 +89,7 @@ export const AddFacultyForm: React.FC<AddFacultyFormProps> = ({ departments, onS
       lastName: "",
       title: "",
       email: "",
-      departmentId: departments[0]?.id || "",
+      departmentId: defaultDepartmentId,
       createAccount: false,
     },
   });
@@ -52,6 +99,15 @@ export const AddFacultyForm: React.FC<AddFacultyFormProps> = ({ departments, onS
   React.useEffect(() => {
     setShowAccountFields(watchCreateAccount);
   }, [watchCreateAccount]);
+
+  // Update departmentId when departments change
+  React.useEffect(() => {
+    if (departmentId) {
+      form.setValue('departmentId', departmentId);
+    } else if (loadedDepartments.length > 0) {
+      form.setValue('departmentId', loadedDepartments[0]?.id || "");
+    }
+  }, [departmentId, loadedDepartments, form]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
@@ -106,11 +162,13 @@ export const AddFacultyForm: React.FC<AddFacultyFormProps> = ({ departments, onS
 
       if (facultyError) throw facultyError;
 
+      const departmentName = loadedDepartments.find(d => d.id === values.departmentId)?.name || 
+                          departments?.find(d => d.id === values.departmentId)?.name || 
+                          'the department';
+
       toast({
         title: "Faculty Added Successfully",
-        description: `${values.firstName} ${values.lastName} has been added to ${
-          departments.find(d => d.id === values.departmentId)?.name || 'the department'
-        }${values.createAccount ? " with a user account" : ""}.`,
+        description: `${values.firstName} ${values.lastName} has been added to ${departmentName}${values.createAccount ? " with a user account" : ""}.`,
       });
 
       form.reset();
@@ -186,33 +244,36 @@ export const AddFacultyForm: React.FC<AddFacultyFormProps> = ({ departments, onS
             )}
           />
           
-          <FormField
-            control={form.control}
-            name="departmentId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Department</FormLabel>
-                <Select 
-                  onValueChange={field.onChange} 
-                  defaultValue={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Department" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {departments.map((dept) => (
-                      <SelectItem key={dept.id} value={dept.id}>
-                        {dept.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {loadedDepartments.length > 1 && (
+            <FormField
+              control={form.control}
+              name="departmentId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Department</FormLabel>
+                  <Select 
+                    onValueChange={field.onChange} 
+                    value={field.value}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Department" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {loadedDepartments.map((dept) => (
+                        <SelectItem key={dept.id} value={dept.id}>
+                          {dept.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
         </div>
         
         <FormField
