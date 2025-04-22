@@ -5,21 +5,94 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import RoleManagement from './RoleManagement';
 import TeachingLoadManager from './TeachingLoadManager';
-import { Users, BookOpen, Layers, Award, BarChart2, Settings, User, FileText, Database } from 'lucide-react';
+import { Users, BookOpen, Layers, Award, BarChart2, Settings, User, FileText, Database, UserPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { AddFacultyForm } from './AddFacultyForm';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { supabase } from "@/integrations/supabase/client";
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
+  const [isAddFacultyOpen, setIsAddFacultyOpen] = useState(false);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
+  const [facultyMembers, setFacultyMembers] = useState<any[]>([]);
   const { toast } = useToast();
   
   useEffect(() => {
+    // Fetch departments for faculty assignment
+    const fetchDepartments = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('departments')
+          .select('*');
+        
+        if (error) throw error;
+        setDepartments(data || []);
+        if (data && data.length > 0) {
+          setSelectedDepartment(data[0].id);
+        }
+      } catch (error) {
+        console.error('Error fetching departments:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load departments",
+          variant: "destructive"
+        });
+      }
+    };
+
+    // Fetch faculty members
+    const fetchFacultyMembers = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('faculty_members')
+          .select('*');
+        
+        if (error) throw error;
+        setFacultyMembers(data || []);
+      } catch (error) {
+        console.error('Error fetching faculty members:', error);
+      }
+    };
+
+    fetchDepartments();
+    fetchFacultyMembers();
+    
     // Let the user know the dashboard is loaded
     console.log("Admin dashboard loaded");
     toast({
       title: "Admin Dashboard",
       description: "Admin dashboard loaded successfully",
     });
-  }, []);
+  }, [toast]);
+
+  const handleAddFaculty = () => {
+    setIsAddFacultyOpen(true);
+  };
+
+  const handleFacultyAdded = () => {
+    setIsAddFacultyOpen(false);
+    // Refresh faculty list
+    const fetchFacultyMembers = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('faculty_members')
+          .select('*');
+        
+        if (error) throw error;
+        setFacultyMembers(data || []);
+      } catch (error) {
+        console.error('Error fetching faculty members:', error);
+      }
+    };
+    fetchFacultyMembers();
+
+    toast({
+      title: "Success",
+      description: "Faculty member added successfully",
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -27,9 +100,27 @@ const AdminDashboard = () => {
         <h2 className="text-3xl font-bold">Admin Dashboard</h2>
         <div className="space-x-2">
           <Button variant="outline">Export Reports</Button>
-          <Button>+ Add Faculty</Button>
+          <Button onClick={handleAddFaculty}>
+            <UserPlus className="mr-2 h-4 w-4" />
+            Add Faculty
+          </Button>
         </div>
       </div>
+      
+      {/* Faculty add dialog */}
+      <Dialog open={isAddFacultyOpen} onOpenChange={setIsAddFacultyOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Add New Faculty Member</DialogTitle>
+          </DialogHeader>
+          {selectedDepartment && (
+            <AddFacultyForm 
+              departmentId={selectedDepartment} 
+              onSuccess={handleFacultyAdded} 
+            />
+          )}
+        </DialogContent>
+      </Dialog>
       
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
@@ -38,7 +129,7 @@ const AdminDashboard = () => {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">24</div>
+            <div className="text-2xl font-bold">{facultyMembers.length}</div>
             <p className="text-xs text-muted-foreground">Active faculty members</p>
           </CardContent>
         </Card>
@@ -49,7 +140,7 @@ const AdminDashboard = () => {
             <Layers className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">5</div>
+            <div className="text-2xl font-bold">{departments.length}</div>
             <p className="text-xs text-muted-foreground">Academic departments</p>
           </CardContent>
         </Card>
@@ -97,38 +188,26 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center p-3 border rounded-lg hover:bg-gray-50">
-                    <div className="flex items-center gap-3">
-                      <User className="h-5 w-5 text-blue-600" />
-                      <div>
-                        <p className="font-medium">Dr. Anjali Sharma</p>
-                        <p className="text-sm text-muted-foreground">Faculty - Computer Science</p>
+                  {facultyMembers.slice(0, 2).map((faculty) => (
+                    <div key={faculty.id} className="flex justify-between items-center p-3 border rounded-lg hover:bg-gray-50">
+                      <div className="flex items-center gap-3">
+                        <User className="h-5 w-5 text-blue-600" />
+                        <div>
+                          <p className="font-medium">{faculty.title} {faculty.first_name} {faculty.last_name}</p>
+                          <p className="text-sm text-muted-foreground">{faculty.email}</p>
+                        </div>
                       </div>
+                      <Button variant="outline" size="sm">
+                        Manage Role
+                      </Button>
                     </div>
-                    <Button variant="outline" size="sm">
-                      Manage Role
-                    </Button>
-                  </div>
+                  ))}
                   
-                  <div className="flex justify-between items-center p-3 border rounded-lg hover:bg-gray-50">
-                    <div className="flex items-center gap-3">
-                      <User className="h-5 w-5 text-blue-600" />
-                      <div>
-                        <p className="font-medium">Dr. John Miller</p>
-                        <p className="text-sm text-muted-foreground">HOD - Mathematics</p>
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm">
-                      Manage Role
-                    </Button>
-                  </div>
-                  
-                  <Button className="w-full" size="sm" onClick={() => {
-                    toast({
-                      title: "Feature Coming Soon",
-                      description: "This feature is under development",
-                    });
-                  }}>
+                  <Button 
+                    className="w-full" 
+                    size="sm" 
+                    onClick={() => setActiveTab("faculty")}
+                  >
                     <Users className="h-4 w-4 mr-2" />
                     View All Faculty
                   </Button>
@@ -166,12 +245,11 @@ const AdminDashboard = () => {
                     </Button>
                   </div>
                   
-                  <Button className="w-full" size="sm" onClick={() => {
-                    toast({
-                      title: "Feature Coming Soon",
-                      description: "This feature is under development",
-                    });
-                  }}>
+                  <Button 
+                    className="w-full" 
+                    size="sm"
+                    onClick={() => setActiveTab("workloads")}
+                  >
                     <BookOpen className="h-4 w-4 mr-2" />
                     View All Courses
                   </Button>
@@ -192,23 +270,29 @@ const AdminDashboard = () => {
             <CardContent>
               <div className="space-y-6">
                 <div className="grid md:grid-cols-3 gap-4">
-                  {[1, 2, 3, 4, 5, 6].map((i) => (
-                    <Card key={i} className="overflow-hidden">
-                      <div className="bg-slate-100 p-6 flex justify-center">
-                        <User className="h-20 w-20 text-slate-400" />
-                      </div>
-                      <CardContent className="p-4">
-                        <h4 className="font-semibold">Dr. Faculty Member {i}</h4>
-                        <p className="text-sm text-muted-foreground">Department {i % 3 + 1}</p>
-                        <div className="flex justify-between items-center mt-4">
-                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                            {i % 2 === 0 ? 'Faculty' : 'HOD'}
-                          </span>
-                          <Button variant="ghost" size="sm">View Profile</Button>
+                  {facultyMembers.length > 0 ? (
+                    facultyMembers.map((faculty) => (
+                      <Card key={faculty.id} className="overflow-hidden">
+                        <div className="bg-slate-100 p-6 flex justify-center">
+                          <User className="h-20 w-20 text-slate-400" />
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        <CardContent className="p-4">
+                          <h4 className="font-semibold">{faculty.title} {faculty.first_name} {faculty.last_name}</h4>
+                          <p className="text-sm text-muted-foreground">{faculty.email}</p>
+                          <div className="flex justify-between items-center mt-4">
+                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                              Faculty
+                            </span>
+                            <Button variant="ghost" size="sm">View Profile</Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  ) : (
+                    <div className="col-span-3 text-center py-8">
+                      <p className="text-muted-foreground">No faculty members found. Add some using the button below.</p>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="flex justify-between">
@@ -216,8 +300,8 @@ const AdminDashboard = () => {
                     <FileText className="h-4 w-4 mr-2" />
                     Export Faculty Data
                   </Button>
-                  <Button>
-                    <Users className="h-4 w-4 mr-2" />
+                  <Button onClick={handleAddFaculty}>
+                    <UserPlus className="h-4 w-4 mr-2" />
                     Add New Faculty
                   </Button>
                 </div>
