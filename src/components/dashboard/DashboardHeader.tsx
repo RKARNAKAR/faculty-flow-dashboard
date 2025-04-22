@@ -2,6 +2,7 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { LogOut } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface DashboardHeaderProps {
   userRole: string;
@@ -9,6 +10,8 @@ interface DashboardHeaderProps {
 }
 
 const DashboardHeader: React.FC<DashboardHeaderProps> = ({ userRole, userName }) => {
+  const { signOut } = useAuth();
+  
   return (
     <header className="bg-[#1a237e] text-white p-4 flex justify-between items-center">
       <div className="flex items-center space-x-4">
@@ -19,7 +22,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ userRole, userName })
       </div>
       <div className="flex items-center space-x-4">
         <span>{userName}</span>
-        <Button variant="ghost" size="icon">
+        <Button variant="ghost" size="icon" onClick={signOut}>
           <LogOut className="h-5 w-5" />
         </Button>
       </div>
