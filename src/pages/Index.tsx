@@ -25,8 +25,11 @@ const Index = () => {
   }
   
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
       <LoginForm />
+      <p className="mt-4 text-sm text-gray-600">
+        Contact your administrator for account access.
+      </p>
     </div>
   );
 };
