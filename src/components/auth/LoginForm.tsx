@@ -6,20 +6,32 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const LoginForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
   const { signIn } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setError('');
+    
+    if (!email || !password || !role) {
+      setError('Please fill in all fields including selecting your role');
+      setIsSubmitting(false);
+      return;
+    }
     
     try {
-      await signIn(email, password);
+      await signIn(email, password, role);
+    } catch (err: any) {
+      console.error('Login error:', err);
+      setError(err.message || 'Failed to login. Please check your credentials and try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -36,6 +48,11 @@ const LoginForm = () => {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {error && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
         <form onSubmit={handleLogin} className="space-y-4">
           <div className="space-y-2">
             <Input
@@ -58,7 +75,7 @@ const LoginForm = () => {
             />
           </div>
           <div className="space-y-2">
-            <Select value={role} onValueChange={setRole}>
+            <Select value={role} onValueChange={setRole} required>
               <SelectTrigger>
                 <SelectValue placeholder="Select your role" />
               </SelectTrigger>

@@ -10,7 +10,7 @@ interface AuthContextProps {
   user: User | null;
   userRole: string | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string, role?: string) => Promise<void>;
   signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -71,14 +71,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string, role?: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log('Attempting to sign in with:', { email, role });
+      
+      // First, authenticate with email and password
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) throw error;
+      if (authError) throw authError;
+      
+      if (!authData.user) {
+        throw new Error('Authentication successful but no user returned');
+      }
+      
+      // If a role was specified, verify the user has that role
+      if (role) {
+        const { data: roleData, error: roleError } = await supabase
+          .from('user_roles')
+          .select(`
+            role_id,
+            roles:role_id (
+              name
+            )
+          `)
+          .eq('user_id', authData.user.id)
+          .single();
+          
+        if (roleError) {
+          // If there was an error checking the role, sign out the user
+          await supabase.auth.signOut();
+          throw new Error('Unable to verify user role. Please contact support.');
+        }
+        
+        if (!roleData || roleData.roles?.name?.toLowerCase() !== role.toLowerCase()) {
+          // If the role doesn't match, sign out and throw an error
+          await supabase.auth.signOut();
+          throw new Error(`You do not have ${role} access. Please select the correct role or contact your administrator.`);
+        }
+        
+        // Set the role since we have it already
+        setUserRole(roleData.roles?.name || null);
+      }
       
       navigate('/dashboard');
       toast({
@@ -86,11 +122,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: "You have successfully signed in.",
       });
     } catch (error: any) {
+      console.error('Sign in error:', error);
       toast({
         title: "Error signing in",
         description: error.message,
         variant: "destructive",
       });
+      throw error; // Re-throw to be handled by the login form
     }
   };
 
