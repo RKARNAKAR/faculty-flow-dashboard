@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -170,7 +169,7 @@ const FacultyDashboard = () => {
                   <CardTitle>Current Teaching Load</CardTitle>
                   <CardDescription>Your assigned courses for the current semester</CardDescription>
                 </div>
-                <Button variant="outline" size="sm">View Schedule</Button>
+                <Button variant="outline">Download Schedule</Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -226,11 +225,11 @@ const FacultyDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>My Certifications</CardTitle>
-                  <CardDescription>Manage your professional certifications and achievements</CardDescription>
+                  <CardDescription>Upload and manage your professional certifications</CardDescription>
                 </div>
-                <Button className="flex items-center gap-1">
-                  <Upload className="h-4 w-4" />
-                  <span>Upload New</span>
+                <Button>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload New
                 </Button>
               </div>
             </CardHeader>

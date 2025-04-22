@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -85,18 +84,16 @@ const HodDashboard = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold">Department Head Dashboard</h2>
-        <div>
-          <Button>Generate Department Report</Button>
-        </div>
+        <Button>Generate Department Report</Button>
       </div>
       
       {departmentData ? (
         <>
           <Card>
             <CardHeader>
-              <CardTitle>{departmentData.name} ({departmentData.code})</CardTitle>
+              <CardTitle>{departmentData.name} Department Overview</CardTitle>
               <CardDescription>
-                {departmentData.description || 'Department overview and faculty management'}
+                Monitor department performance and faculty management
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -162,7 +159,7 @@ const HodDashboard = () => {
                 <CardHeader>
                   <CardTitle>Department Faculty</CardTitle>
                   <CardDescription>
-                    Overview of all faculty members in your department
+                    Review and manage department faculty members
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
