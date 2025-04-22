@@ -10,6 +10,7 @@ const Index = () => {
   const navigate = useNavigate();
   
   useEffect(() => {
+    // Only redirect if we have both a user and a role
     if (!loading && user && userRole) {
       navigate('/dashboard');
     }

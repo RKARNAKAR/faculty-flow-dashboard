@@ -17,6 +17,28 @@ interface AuthContextProps {
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 
+// Mock user credentials for development
+const MOCK_USERS = {
+  'admin@facultech.com': {
+    password: 'admin123',
+    role: 'admin',
+    firstName: 'Admin',
+    lastName: 'User'
+  },
+  'faculty@facultech.com': {
+    password: 'faculty123',
+    role: 'faculty',
+    firstName: 'Faculty',
+    lastName: 'User'
+  },
+  'hod@facultech.com': {
+    password: 'hod123',
+    role: 'hod',
+    firstName: 'HOD',
+    lastName: 'User'
+  }
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -31,7 +53,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
-          fetchUserRole(session.user.id);
+          // For mock users, we get the role from metadata
+          const mockRole = session?.user?.user_metadata?.role;
+          if (mockRole) {
+            setUserRole(mockRole);
+          } else {
+            // For real users, fetch from database
+            fetchUserRole(session.user.id);
+          }
         } else {
           setUserRole(null);
         }
@@ -42,7 +71,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchUserRole(session.user.id);
+        // For mock users, we get the role from metadata
+        const mockRole = session?.user?.user_metadata?.role;
+        if (mockRole) {
+          setUserRole(mockRole);
+        } else {
+          // For real users, fetch from database
+          fetchUserRole(session.user.id);
+        }
       }
       setLoading(false);
     });
@@ -71,42 +107,68 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Modified signIn to handle demo accounts directly
   const signIn = async (email: string, password: string, role?: string) => {
     try {
       console.log('Attempting to sign in with:', { email, role });
       
-      // For demo purposes, we'll handle mock credentials directly
-      if (role && email && password) {
-        // Check if using demo credentials
-        const isDemoAccount = (
-          (email === 'admin@facultech.com' && password === 'admin123' && role.toLowerCase() === 'admin') ||
-          (email === 'faculty@facultech.com' && password === 'faculty123' && role.toLowerCase() === 'faculty') ||
-          (email === 'hod@facultech.com' && password === 'hod123' && role.toLowerCase() === 'hod')
-        );
+      // Check if this is a mock user
+      if (email in MOCK_USERS) {
+        const mockUser = MOCK_USERS[email as keyof typeof MOCK_USERS];
         
-        if (isDemoAccount) {
-          // If using demo credentials, sign in without role verification
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
+        // Verify password and role
+        if (mockUser.password !== password) {
+          throw new Error('Invalid password for mock account');
+        }
+        
+        if (role && role.toLowerCase() !== mockUser.role) {
+          throw new Error(`Selected role "${role}" doesn't match the mock user's role "${mockUser.role}"`);
+        }
+
+        // For mock users, we'll sign in with a special way to identify them
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        
+        if (error) {
+          // For development mode, if the mock user doesn't exist in Supabase,
+          // we'll create a fake session manually
+          console.log("Using mock credentials without Supabase account");
           
-          if (error) throw error;
+          // Fake user and session objects
+          const mockUserObj = {
+            id: `mock_${Date.now()}`,
+            email: email,
+            user_metadata: {
+              first_name: mockUser.firstName,
+              last_name: mockUser.lastName,
+              role: mockUser.role
+            }
+          } as unknown as User;
           
-          // Manually set the role for demo accounts
-          setUserRole(role.toLowerCase());
+          // Set the mock session state
+          setUser(mockUserObj);
+          setUserRole(mockUser.role);
           
           navigate('/dashboard');
           toast({
             title: "Success",
-            description: "You have successfully signed in with demo account.",
+            description: "You have successfully signed in with mock credentials.",
           });
           return;
         }
+        
+        // If we get here, the mock user exists in Supabase
+        setUserRole(mockUser.role);
+        navigate('/dashboard');
+        toast({
+          title: "Success",
+          description: "You have successfully signed in with mock account.",
+        });
+        return;
       }
       
-      // For non-demo accounts, proceed with normal authentication
+      // For non-mock accounts, proceed with normal authentication
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
