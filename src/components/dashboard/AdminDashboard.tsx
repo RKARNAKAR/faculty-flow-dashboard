@@ -8,7 +8,7 @@ import TeachingLoadManager from './TeachingLoadManager';
 import { Users, BookOpen, Layers, Award, BarChart2, Settings, User, FileText, Database, UserPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { AddFacultyForm } from './AddFacultyForm';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DialogContent, DialogHeader, DialogTitle, Dialog, DialogDescription } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 
 const AdminDashboard = () => {
@@ -112,6 +112,7 @@ const AdminDashboard = () => {
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>Add New Faculty Member</DialogTitle>
+            <DialogDescription>Create a new faculty member with user credentials if needed</DialogDescription>
           </DialogHeader>
           {selectedDepartment && (
             <AddFacultyForm 

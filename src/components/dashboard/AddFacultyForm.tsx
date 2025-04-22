@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -337,12 +337,3 @@ export const AddFacultyForm: React.FC<AddFacultyFormProps> = ({ departmentId, on
     </Form>
   );
 };
-
-export interface FormDescription {
-    children?: React.ReactNode;
-    className?: string;
-}
-
-const FormDescription: React.FC<FormDescription> = ({ children, className }) => (
-  <p className={`text-sm text-muted-foreground ${className}`}>{children}</p>
-);

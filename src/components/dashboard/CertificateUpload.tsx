@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -13,12 +13,16 @@ import { Upload, FileText } from 'lucide-react';
 
 // Create the certificate storage bucket if it doesn't exist
 const createBucketIfNotExists = async () => {
-  const { data: buckets } = await supabase.storage.listBuckets();
-  if (!buckets?.find(bucket => bucket.name === 'certificates')) {
-    await supabase.storage.createBucket('certificates', {
-      public: false,
-      fileSizeLimit: 5242880, // 5MB
-    });
+  try {
+    const { data: buckets } = await supabase.storage.listBuckets();
+    if (!buckets?.find(bucket => bucket.name === 'certificates')) {
+      await supabase.storage.createBucket('certificates', {
+        public: false,
+        fileSizeLimit: 5242880, // 5MB
+      });
+    }
+  } catch (error) {
+    console.error("Error creating bucket:", error);
   }
 };
 
@@ -56,7 +60,7 @@ export const CertificateUpload: React.FC<CertificateUploadProps> = ({ department
     },
   });
 
-  React.useEffect(() => {
+  useEffect(() => {
     createBucketIfNotExists();
     fetchCertificates();
   }, []);
